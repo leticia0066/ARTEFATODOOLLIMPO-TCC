@@ -49,5 +49,9 @@ TagManager:
   - name: New Layer 3
     uniqueID: 1513493325
     locked: 0
+  - name: Background
+    uniqueID: 188811377
+    locked: 0
   m_RenderingLayers:
   - Default
+  m_MigratedRenderPipelines: []
