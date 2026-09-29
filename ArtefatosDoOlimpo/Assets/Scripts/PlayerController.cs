@@ -1,4 +1,3 @@
-
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
@@ -20,6 +19,9 @@ public class PlayerController : MonoBehaviour
     private Rigidbody2D rb;
     private float moveInput;
     private bool isGrounded;
+
+    // Velocidade recebida de uma plataforma móvel
+    private Vector2 platformVelocity = Vector2.zero;
 
     void Start()
     {
@@ -55,7 +57,9 @@ public class PlayerController : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning("PULO BLOQUEADO: o Player NÃO está sendo reconhecido no chão.");
+                Debug.LogWarning(
+                    "PULO BLOQUEADO: o Player NÃO está sendo reconhecido no chão."
+                );
             }
         }
 
@@ -78,9 +82,22 @@ public class PlayerController : MonoBehaviour
         if (rb == null)
             return;
 
+        float velocidadeHorizontal =
+            moveInput * speed + platformVelocity.x;
+
+        float velocidadeVertical = rb.linearVelocity.y;
+
+        // Se a plataforma estiver subindo ou descendo
+        // e o Player estiver apoiado nela,
+        // acompanha o movimento vertical da plataforma.
+        if (isGrounded && platformVelocity.y != 0)
+        {
+            velocidadeVertical = platformVelocity.y;
+        }
+
         rb.linearVelocity = new Vector2(
-            moveInput * speed,
-            rb.linearVelocity.y
+            velocidadeHorizontal,
+            velocidadeVertical
         );
     }
 
@@ -88,6 +105,10 @@ public class PlayerController : MonoBehaviour
     {
         if (rb == null)
             return;
+
+        // Ao pular, deixa de ser carregado verticalmente
+        // pela plataforma.
+        platformVelocity = new Vector2(platformVelocity.x, 0f);
 
         rb.linearVelocity = new Vector2(
             rb.linearVelocity.x,
@@ -150,6 +171,24 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    // =========================================================
+    // PLATAFORMA MÓVEL
+    // =========================================================
+
+    public void SetPlatformVelocity(Vector2 velocity)
+    {
+        platformVelocity = velocity;
+    }
+
+    public void ClearPlatformVelocity()
+    {
+        platformVelocity = Vector2.zero;
+    }
+
+    // =========================================================
+    // GIZMOS
+    // =========================================================
+
     void OnDrawGizmosSelected()
     {
         // GroundCheck
@@ -175,4 +214,3 @@ public class PlayerController : MonoBehaviour
         }
     }
 }
-
