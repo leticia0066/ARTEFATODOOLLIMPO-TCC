@@ -3,138 +3,81 @@ using UnityEngine;
 public class InfiniteBackground : MonoBehaviour
 {
     [Header("Configuração")]
-    [SerializeField] private Transform cameraTransform;
-
+    public Transform cameraTransform;
+    
     [Header("Velocidade do Parallax")]
     [Range(0f, 1f)]
-    [SerializeField] private float parallax = 0.3f;
+    public float parallaxEffectMultiplier = 0.25f; // 0 = segue a câmera perfeitamente, 1 = fica parado
 
-    private float largura;
-
-    private Transform fundo1;
-    private Transform fundo2;
-    private Transform fundo3;
-
-    private Vector3 ultimaPosicaoCamera;
+    private Vector3 lastCameraPosition;
+    private float textureUnitSizeX;
 
     void Start()
     {
+        // Se você esquecer de arrastar a câmera, o código tenta achar automaticamente
         if (cameraTransform == null)
         {
-            cameraTransform = Camera.main.transform;
+            if (Camera.main != null)
+            {
+                cameraTransform = Camera.main.transform;
+            }
+            else
+            {
+                Debug.LogError("ERRO: Nenhuma Main Camera foi encontrada na cena!");
+                enabled = false;
+                return;
+            }
         }
 
-        fundo1 = transform.GetChild(0);
+        lastCameraPosition = cameraTransform.position;
 
-        GameObject fundo2Obj = Instantiate(fundo1.gameObject, transform);
-        GameObject fundo3Obj = Instantiate(fundo1.gameObject, transform);
-
-        fundo2 = fundo2Obj.transform;
-        fundo3 = fundo3Obj.transform;
-
-        SpriteRenderer sprite = fundo1.GetComponent<SpriteRenderer>();
-
-        if (sprite == null)
+        SpriteRenderer spriteRenderer = GetComponent<SpriteRenderer>();
+        
+        // PROTEÇÃO: Verifica se o SpriteRenderer ou o Sprite estão vazios (evita o erro de NaN)
+        if (spriteRenderer == null || spriteRenderer.sprite == null)
         {
-            Debug.LogError("O fundo precisa ter um SpriteRenderer!");
+            Debug.LogError("ERRO: O objeto '" + gameObject.name + "' precisa de um componente SpriteRenderer com uma imagem (Sprite) colocada nele!");
+            enabled = false; // Desativa o script para não travar o jogo
             return;
         }
 
-        largura = sprite.bounds.size.x;
+        Sprite sprite = spriteRenderer.sprite;
+        Texture2D texture = sprite.texture;
 
-        fundo1.position = new Vector3(
-            fundo1.position.x,
-            fundo1.position.y,
-            fundo1.position.z
-        );
+        // PROTEÇÃO: Evita divisão por zero
+        if (sprite.pixelsPerUnit == 0)
+        {
+            textureUnitSizeX = texture.width / 100f; 
+        }
+        else
+        {
+            textureUnitSizeX = texture.width / sprite.pixelsPerUnit;
+        }
 
-        fundo2.position = new Vector3(
-            fundo1.position.x + largura,
-            fundo1.position.y,
-            fundo1.position.z
-        );
-
-        fundo3.position = new Vector3(
-            fundo1.position.x + largura * 2f,
-            fundo1.position.y,
-            fundo1.position.z
-        );
-
-        ultimaPosicaoCamera = cameraTransform.position;
+        // PROTEÇÃO: Garante que o tamanho seja válido
+        if (textureUnitSizeX <= 0 || float.IsNaN(textureUnitSizeX))
+        {
+            textureUnitSizeX = 10f; // Valor padrão seguro
+        }
     }
 
     void LateUpdate()
     {
-        if (cameraTransform == null)
-            return;
+        if (cameraTransform == null) return;
 
-        float movimentoCamera =
-            cameraTransform.position.x - ultimaPosicaoCamera.x;
+        // Calcula o quanto a câmera se moveu
+        Vector3 deltaMovement = cameraTransform.position - lastCameraPosition;
+        
+        // Move o fundo proporcionalmente ao movimento da câmera (Parallax)
+        transform.position += new Vector3(deltaMovement.x * parallaxEffectMultiplier, deltaMovement.y * parallaxEffectMultiplier, 0);
+        
+        lastCameraPosition = cameraTransform.position;
 
-        transform.position += new Vector3(
-            movimentoCamera * parallax,
-            0f,
-            0f
-        );
-
-        ultimaPosicaoCamera = cameraTransform.position;
-
-        ReposicionarFundos();
-    }
-
-    void ReposicionarFundos()
-    {
-        float cameraX = cameraTransform.position.x;
-
-        float distancia1 = Mathf.Abs(cameraX - fundo1.position.x);
-        float distancia2 = Mathf.Abs(cameraX - fundo2.position.x);
-        float distancia3 = Mathf.Abs(cameraX - fundo3.position.x);
-
-        if (distancia1 > largura * 1.5f)
+        // Verifica se a câmera passou do limite do tamanho da imagem para fazer a emenda invisível
+        if (Mathf.Abs(cameraTransform.position.x - transform.position.x) >= textureUnitSizeX)
         {
-            fundo1.position = NovaPosicao(fundo1);
-        }
-
-        if (distancia2 > largura * 1.5f)
-        {
-            fundo2.position = NovaPosicao(fundo2);
-        }
-
-        if (distancia3 > largura * 1.5f)
-        {
-            fundo3.position = NovaPosicao(fundo3);
-        }
-    }
-
-    Vector3 NovaPosicao(Transform fundo)
-    {
-        float maiorX = Mathf.Max(
-            fundo1.position.x,
-            fundo2.position.x,
-            fundo3.position.x
-        );
-
-        float menorX = Mathf.Min(
-            fundo1.position.x,
-            fundo2.position.x,
-            fundo3.position.x
-        );
-
-        if (fundo.position.x < cameraTransform.position.x)
-        {
-            return new Vector3(
-                maiorX + largura,
-                fundo.position.y,
-                fundo.position.z
-            );
-        }
-        else
-        {
-            return new Vector3(
-                menorX - largura,
-                fundo.position.y,
-                fundo.position.z
-            );
+            float offsetPositionX = (cameraTransform.position.x - transform.position.x) % textureUnitSizeX;
+            transform.position = new Vector3(cameraTransform.position.x + offsetPositionX, transform.position.y, transform.position.z);
         }
     }
 }
